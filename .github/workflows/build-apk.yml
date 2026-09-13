@@ -37,18 +37,64 @@ jobs:
       - name: Make Gradlew Executable
         run: chmod +x ./gradlew
 
-      - name: Restore Debug Keystore
+      - name: Setup Environment & Keystore
         run: |
-          if [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-            echo "Successfully restored debug.keystore from debug.keystore.base64"
+          # 1. Ensure .env exists for Secrets Gradle Plugin
+          touch .env
+          if [ -f .env.example ]; then
+            cp -n .env.example .env || true
           fi
 
-      - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses 2>/dev/null || true
+          # 2. Restore debug.keystore if base64 is available
+          if [ ! -f debug.keystore ]; then
+            if [ -f debug.keystore.base64 ]; then
+              base64 -d debug.keystore.base64 > debug.keystore
+              echo "Restored debug.keystore from base64"
+            fi
+          fi
+
+          # 3. If debug.keystore is still missing, generate it with keytool
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+            echo "Generated fresh debug.keystore with keytool"
+          fi
+
+      - name: Setup Android SDK, Licenses & Platform 36
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+
+          # Pre-accept all Android SDK licenses
+          mkdir -p "$ANDROID_HOME/licenses"
+          echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
+          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          echo -e "\n859f317696f67ef3d7f30a50a5560e7834b43903" > "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license"
+          echo -e "\nceff83576aac4f7f37cb98fe189e9fb3c49d3b81" > "$ANDROID_HOME/licenses/android-googlexr-license"
+          echo -e "\n601085b94cd77f0b54ff86406957099ebe79c4d6" > "$ANDROID_HOME/licenses/android-googletv-license"
+          echo -e "\n33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > "$ANDROID_HOME/licenses/google-gdk-license"
+          echo -e "\ne9acab5b5fbb560a72cfaecce8946896ff6aab9d" > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
+
+          # Accept licenses via sdkmanager
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses 2>/dev/null || true
+
+          # Install Platform 36 and Build-Tools 36
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" || true
+
+          # Handle minorApiLevel 1 (android-36.1) if required by AGP
+          if [ -d "$ANDROID_HOME/platforms/android-36" ] && [ ! -d "$ANDROID_HOME/platforms/android-36.1" ]; then
+            cp -r "$ANDROID_HOME/platforms/android-36" "$ANDROID_HOME/platforms/android-36.1"
+            if [ -f "$ANDROID_HOME/platforms/android-36.1/source.properties" ]; then
+              sed -i 's/AndroidVersion.ApiLevel=36/AndroidVersion.ApiLevel=36.1/' "$ANDROID_HOME/platforms/android-36.1/source.properties" || true
+            fi
+            echo "Configured android-36.1 platform extension"
+          fi
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: |
+          ./gradlew assembleDebug --stacktrace --no-daemon --no-configuration-cache
 
       - name: Prepare APK File
         run: |
