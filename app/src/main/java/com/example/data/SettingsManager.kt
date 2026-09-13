@@ -34,6 +34,17 @@ class SettingsManager(context: Context) {
         _avatarVideoUri.value = uri
     }
 
+    private val _githubRepo = MutableStateFlow(
+        prefs.getString("github_repo_slug", "manishkumar51049348494/pixelgram") ?: "manishkumar51049348494/pixelgram"
+    )
+    val githubRepo: StateFlow<String> = _githubRepo.asStateFlow()
+
+    fun updateGithubRepo(repo: String) {
+        val clean = repo.trim().removePrefix("https://github.com/").removeSuffix("/")
+        prefs.edit().putString("github_repo_slug", clean).apply()
+        _githubRepo.value = clean
+    }
+
     private fun loadRecordingConfig(): RecordingConfig {
         val resName = prefs.getString("video_resolution", VideoResolution.RES_1080P.name)
         val fpsName = prefs.getString("video_fps", VideoFps.FPS_30.name)
