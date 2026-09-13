@@ -35,7 +35,7 @@ class SettingsManager(context: Context) {
     }
 
     private val _githubRepo = MutableStateFlow(
-        prefs.getString("github_repo_slug", "manishkumar51049348494/pixelgram") ?: "manishkumar51049348494/pixelgram"
+        prefs.getString("github_repo_slug", "manishkumar51049348494-dotcom/screen-recorder") ?: "manishkumar51049348494-dotcom/screen-recorder"
     )
     val githubRepo: StateFlow<String> = _githubRepo.asStateFlow()
 

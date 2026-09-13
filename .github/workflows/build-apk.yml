@@ -25,11 +25,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -37,14 +37,31 @@ jobs:
       - name: Make Gradlew Executable
         run: chmod +x ./gradlew
 
+      - name: Restore Debug Keystore
+        run: |
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+            echo "Successfully restored debug.keystore from debug.keystore.base64"
+          fi
+
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses 2>/dev/null || true
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Prepare APK File
         run: |
           mkdir -p release-output
-          cp app/build/outputs/apk/debug/app-debug.apk release-output/Pixelgram-latest.apk
-          echo "APK generated successfully at release-output/Pixelgram-latest.apk"
+          APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+            cp "$APK_PATH" release-output/Pixelgram-latest.apk
+            echo "APK ready at release-output/Pixelgram-latest.apk"
+          else
+            echo "ERROR: APK file not found!"
+            find app/build -name "*.apk" || true
+            exit 1
+          fi
 
       - name: Upload APK to Artifacts
         uses: actions/upload-artifact@v4
@@ -55,6 +72,7 @@ jobs:
 
       - name: Create / Update GitHub Release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
@@ -67,7 +85,7 @@ jobs:
             Download **`Pixelgram-latest.apk`** below to install directly on your Android phone!
             
             - **Commit:** ${{ github.sha }}
-            - **Build Date:** ${{ github.event.head_commit.timestamp }}
+            - **Branch:** ${{ github.ref_name }}
           draft: false
           prerelease: false
           files: release-output/Pixelgram-latest.apk
