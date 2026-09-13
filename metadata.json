@@ -1,0 +1,6 @@
+{
+  "name": "Pixelgram",
+  "description": "Professional native Android screen recorder with audio capture, facecam, annotations, screenshots, and recording library.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
