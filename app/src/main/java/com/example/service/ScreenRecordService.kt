@@ -272,38 +272,73 @@ class ScreenRecordService : Service() {
     }
 
     private fun stopRecording() {
+        if (!_recordingState.value.isRecording && currentOutputFile == null) {
+            return
+        }
+
         timerJob?.cancel()
         timerJob = null
 
-        val finalDuration = _recordingState.value.durationMs
-        val outputFile = currentOutputFile
+        val finalDuration = if (startTimeMs > 0) {
+            val elapsed = System.currentTimeMillis() - startTimeMs - pausedDurationMs
+            if (elapsed > 0) elapsed else _recordingState.value.durationMs
+        } else {
+            _recordingState.value.durationMs
+        }
 
+        val outputFile = currentOutputFile
+        val savedWidth = width
+        val savedHeight = height
+        val savedFps = fps
+        val savedAudioMode = audioMode
+
+        // 1. Gracefully stop feeding frames from virtual display to avoid buffer overflow during stop
         try {
+            virtualDisplay?.surface = null
+            virtualDisplay?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        virtualDisplay = null
+
+        // 2. Pause media recorder if currently active to flush any in-flight hardware encoder frames
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                runCatching { mediaRecorder?.pause() }
+            }
+            // Allow a short delay for hardware encoder to flush final frames and finalize MP4 header
+            try {
+                Thread.sleep(150)
+            } catch (_: Exception) {}
+
             mediaRecorder?.stop()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            mediaRecorder?.reset()
-            mediaRecorder?.release()
+            try {
+                mediaRecorder?.reset()
+                mediaRecorder?.release()
+            } catch (_: Exception) {}
             mediaRecorder = null
         }
 
-        virtualDisplay?.release()
-        virtualDisplay = null
-
-        mediaProjection?.stop()
+        try {
+            mediaProjection?.stop()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         mediaProjection = null
 
-        // Save into repository
+        // 3. Save into repository using the Application Scope so it NEVER gets cancelled when service terminates!
         if (outputFile != null && outputFile.exists() && outputFile.length() > 0) {
-            serviceScope.launch {
+            val app = application as PixelgramApp
+            app.applicationScope.launch {
                 try {
-                    val repo = (application as PixelgramApp).mediaRepository
-                    val savedItem = repo.saveRecordedVideo(
+                    val savedItem = app.mediaRepository.saveRecordedVideo(
                         file = outputFile,
-                        resolutionLabel = "${width}x${height}",
-                        fps = fps,
-                        audioMode = audioMode.label,
+                        resolutionLabel = "${savedWidth}x${savedHeight}",
+                        fps = savedFps,
+                        audioMode = savedAudioMode.label,
                         durationMs = finalDuration
                     )
                     showSavedNotification(savedItem, finalDuration)

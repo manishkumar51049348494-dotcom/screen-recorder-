@@ -37,27 +37,28 @@ jobs:
       - name: Make Gradlew Executable
         run: chmod +x ./gradlew
 
-      - name: Setup Environment & Keystore
+      - name: Restore Debug Keystore & Secrets
         run: |
-          # 1. Ensure .env exists for Secrets Gradle Plugin
+          # 1. Ensure .env exists so secrets plugin does not fail
           touch .env
           if [ -f .env.example ]; then
             cp -n .env.example .env || true
           fi
 
-          # 2. Restore debug.keystore if base64 is available
-          if [ ! -f debug.keystore ]; then
-            if [ -f debug.keystore.base64 ]; then
-              base64 -d debug.keystore.base64 > debug.keystore
-              echo "Restored debug.keystore from base64"
-            fi
+          # 2. Recreate debug.keystore directly from embedded base64
+          cat << 'EOF' > /tmp/keystore.b64
+          MIIKZgIBAzCCChAGCSqGSIb3DQEHAaCCCgEEggn9MIIJ+TCCBcAGCSqGSIb3DQEHAaCCBbEEggWtMIIFqTCCBaUGCyqGSIb3DQEMCgECoIIFQDCCBTwwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFGFb7soIfUVSLc7wllYqBJZbZ3JlAgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQQ5iS+QNKL9TY4HQ4ciYHEwSCBNBNGbOI97o+UO6h+BqoHOZhZHg4eefE1wMJQgywkZHxyZYYL9cihb6lZjnMA6mNoF2DtT/mYVF8H6ULLTrcZVbbGbSvVFB2I3jy7yz4E54Ddaz4lGw+w47Sut4JNk8OF3NGib5iyovjcgN1aY9xi8xutl6fvSq3fZBJji5GhwHxB1nOSaSkioi3PgfuCcyaHuvrFYDIm6UjhdoMSomRWVO2EGWQr8Ux0WsbB0N4ktzCCpIT2jacCi/ZF8oiEChdH+pjohnYgEqKvXhr2iNAEK5MYXscCQMHw8QbZ4GRIrVDcANslpO+2bcFQe3oW74zCgRMhnuXKYN3nTm34wPuIHAyHPYucTYWzF5x6yFrWnbO2HaJX60oMBKPD6WC+3lqelFsrk7943h/BVBwssb5n0mBl+h68Im3YCv1zA8aee3/fqXAoqbJ3NyCx0s5AF1YNEtUzgTjesaoBsS7TFBQ6B1ukhxJtE4famirjIZVX9T5DwvnRXroU40aP/4nxUv8M5LK7hRF47h1BeMtJLqWJk3x24QuuH+k+Zz1KvkePmKdynXeoyPlHMZSo2bWOCkxzZ5Sq3hdqijiVgDZ6sYLfq/L8r4Y3VxB9WMBagdmsA2UTP86GF4W3uSagmNuGaOv9cs+2DS4YWufoebI+ULqY51U9HX08cQgcUdWWtnDeAwPBkg80tELsugipho8Rzw/GqJbnYWHpG/xj1DxL7395RvJuWHTpK/0dPRjxInhXRZIlFIG74Yz6ceEQnlLPSgY8LGRpI22WXtKh6m82ceFkjeqTZJc0F1ORQA+39RQ4fTslqPtJoUkdLIt8pod6riWYpCmXipvIlc/9RtrIDKnLGDpdxeGY+30eJKU5Ggx8bFGBpkUS2WmegRP4MMu1WweK85SuArqyfD8NW6+ODJAA5YoB+7uzEValtTRrAOv0DDNv8MnyawzxMOjFnymJhmlewFnerPYczAxW9Npo04lU2CnAvAdG9m+JmeDpyxsI2spROEj8PdCFoB+KSmxFWrSjQqINLqND2fLR3Ity1QhZ9W8d88hQZzdD4F5ZpCdYFNNtVwUY/jRXKhI7OoGCZrCUbCEpZhvAbGE8BoETl2lNLZGxKl5HBxAB8Sy1j1fE+uiH/lTVWVJydm1YLVqz2v3F+WF0w7UurHUxgp0NlxXTpeHXEVXwCaHjnmswFiBDS26K4I1O9xqiHHB1BohUbFriFgVI0T2YAt4EUmzlLoIItESHopGfgYi3tzmXhAL/Ot4wULHdwNZVFmo17fikrOLqbYzq8jYrDKXkQTooFxwxzs4rkx4hnrEIm2YOzUQ4JT4wk34CziG3SxUeWW6v64uDVeBreQqR5WBgDnEutd3NGv+WNUQpaaigv99J3nR0DFL0QhRbIxoaGyyj9/TKtjaIVccldzgMcgqISfPFmH/L8wAxjwCW2zyv6SLACDRPG8nzW5vpa3lfQA9mAjOrZPcXxSDiCo0Xy74WRaxRuiU0zmBH5q2P4BRexwuGN9y6jYPudK8iUStcQJZIN20luYRLgX6pfXRSAk8wL+r8tvX2juI6z3VXCer0G8y2bwadv5YV5HeFpD3tl1dezUjq8JuTIweIClCDyw9pKBCkHOFA6RVuAVeEvGL/qOAosgTmbQXBDFSMC0GCSqGSIb3DQEJFDEgHh4AYQBuAGQAcgBvAGkAZABkAGUAYgB1AGcAawBlAHkwIQYJKoZIhvcNAQkVMRQEElRpbWUgMTc4OTMxNzk1NDEwMDCCBDEGCSqGSIb3DQEHBqCCBCIwggQeAgEAMIIEFwYJKoZIhvcNAQcBMGYGCSqGSIb3DQEFDTBZMDgGCSqGSIb3DQEFDDArBBQx3luK5UCDYg4iV7LdfSc7vIFGTQICJxACASAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEEBREZnuuDumRIMiRvTj6yKAggOgQ/Yj++B0CpOfoARgwh9/sZdW2x1Ry2CG0nKfPKM5g2ulvPu+YOEORlHP8tZxZe1401dKdWUOmnuAPpJYgWlv4UXKoiY+Wl1XbqP6zimP8HM9ZZmgOZdp7vXh3YWKSgF3+CSYTEOUSTZBDNzmsGcpgOANuIygHaSry+JAFMxyDN2bDA7IMPqF0HXGm7BEJUhmn96DaP+3v5wwCCICvfK8DS+4OWuw2LPv6a6E3qYVZh/yOwtYvqbk7jiXxzXfEbH3tGKFzkNx7lincNXdfFYK2y3WvC3A/ksfDnFNxbdCzyIDUj0emKEZ0xqbFKPzlgV1AzA2ZhqvRtfQd4OxyNI+RozPEleVGmgzWbI6RCiweTRCSJFwKoFzn7ZWs9Cy5oXWTwg99JBADknR6rJHUyWJFe7atkEFTbgx+QFr/D98KSGlqAb7Vd6nOuSTGP1PLze17ufd1NSkUgi619y093zM4MoPO57G/9rwOLHibZzkU9lx0psh0+7StZg3smz+tGqJh0WBvNZFW5PnGuA+rb7RnCKYjPCgto9pHpwJKXBn+C1Yyw1h7m3zHet3TiZnu4p4CjVTf51wDoi4ch49URLwIFlW5wCWcyoFZvVzMXwwI6cKiPGX3IpFn9GT1NlIJOxx3JCzxmv9OIKZSLhqmo9xjNpg13acL8uHlmoTxsybCa2aAplHtLnfTd4mYwTxESl6XCYDeejM3DAjZr2AzEayc/xZMk6Wde/3o8Dt7mdgCWcR7gr9FGhLEq2lIh8GNmnVOMGmNnM6QNREOroabGcdLoPp1Rq4/Lq4U8pvsSzVo1G+Tem9rpC3/dn9ZYz/OMwQnsHTflPIy1NyJ+qgKRl7p6CDu2OWt3SaSYRIvxq7wRpjiFSK7+X32jWrOtyEiybdb0jXAD9OCDgjYo9MXe75Du/OX2C5LOVWqX1IhgoqhKz2eJMCOVi8Wk0FyKn+OzIHwJOGwCTr+r3Te4d8Sz+ooxBfRlOgUf3076ReCdSTty+bHCnBvmyKrwxmdtwfKTKlCS/5Aktkbqsb0sALpS7rBdKOOZgTWnsxDgsRn6qo8fkhpNLxcb0FjF9VUgMI92xUCMJjoUJc+oE436KtU9RdOflf5esWV0HwAkBL3OiyDUgW79IJDxN05PFVfxJALAn7ta6znQ7E6LCJIV9WeyFCDyfTn2Tx09nyBDDJNk7hk76RxPVs+VakqXpYI1SzIYCi3c4L8ww1SYg9Kvz4DQJZMzBNMDEwDQYJYIZIAWUDBAIBBQAEIMsbljCIDLZ+wCea/QYchjcRiIxXFmT1GUsxsYSi3MXUBBSa5zTk3XuxXD7+OL9EJNFrhrictQICJxA=
+          EOF
+          tr -d '[:space:]' < /tmp/keystore.b64 | base64 -d > debug.keystore
+          rm -f /tmp/keystore.b64
+
+          # Fallback: if not valid, generate with keytool
+          if [ ! -s debug.keystore ]; then
+            keytool -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
           fi
 
-          # 3. If debug.keystore is still missing, generate it with keytool
-          if [ ! -f debug.keystore ]; then
-            keytool -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
-            echo "Generated fresh debug.keystore with keytool"
-          fi
+          echo "Verified debug.keystore presence:"
+          ls -la debug.keystore
 
       - name: Setup Android SDK, Licenses & Platform 36
         run: |

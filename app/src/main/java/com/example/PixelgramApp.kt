@@ -11,9 +11,12 @@ import com.example.data.SettingsManager
 import com.example.service.ScreenRecordService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class PixelgramApp : Application() {
+
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     lateinit var database: PixelgramDatabase
         private set
