@@ -38,11 +38,8 @@ fun SettingsScreen(
     val facecamConfig by settingsManager.facecamConfig.collectAsState()
     val controlConfig by settingsManager.controlConfig.collectAsState()
     val themeMode by settingsManager.themeMode.collectAsState()
-    val githubRepo by settingsManager.githubRepo.collectAsState()
 
     var showCallAudioNotice by remember { mutableStateOf(false) }
-    var repoInput by remember(githubRepo) { mutableStateOf(githubRepo) }
-    var isEditingRepo by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -443,127 +440,6 @@ fun SettingsScreen(
                         val mode = AppThemeMode.values().first { it.label == selectedLabel }
                         settingsManager.updateThemeMode(mode)
                     }
-                )
-            }
-        }
-
-        // 7. GITHUB & APK DOWNLOAD SECTION
-        SettingsSectionHeader(title = "GitHub & APK Releases", icon = Icons.Default.CloudDownload)
-
-        val cleanRepo = githubRepo.trim().removePrefix("https://github.com/").removeSuffix("/")
-        val releasesUrl = "https://github.com/$cleanRepo/releases"
-        val directApkUrl = "https://github.com/$cleanRepo/releases/latest/download/Pixelgram-latest.apk"
-        val actionsUrl = "https://github.com/$cleanRepo/actions"
-
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                // Direct APK Download CTA
-                Button(
-                    onClick = {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(directApkUrl)).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
-                ) {
-                    Icon(Icons.Default.GetApp, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Download Latest APK (.apk)", fontWeight = FontWeight.Bold)
-                }
-
-                // Secondary GitHub buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releasesUrl)).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Releases", style = MaterialTheme.typography.labelMedium)
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(actionsUrl)).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Builds (CI)", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                // Repo Configuration
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("GitHub Repo", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                    TextButton(
-                        onClick = { isEditingRepo = !isEditingRepo },
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(if (isEditingRepo) "Done" else "Edit")
-                    }
-                }
-
-                if (isEditingRepo) {
-                    OutlinedTextField(
-                        value = repoInput,
-                        onValueChange = {
-                            repoInput = it
-                            settingsManager.updateGithubRepo(it)
-                        },
-                        label = { Text("username/repository") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Text(
-                        text = "https://github.com/$cleanRepo",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                // Guide
-                Text(
-                    text = "Push karte hi GitHub Actions APK generate karke Releases me upload kar deta hai, jise aap direct install kar sakte hain.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

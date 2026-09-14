@@ -14,9 +14,11 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.example.MainActivity
 import kotlinx.coroutines.*
 
@@ -208,52 +210,126 @@ class FloatingControlService : Service() {
             setPadding(dp(4), 0, 0, 0)
         }
 
-        // 1. Pause / Resume icon
-        pauseIcon = ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_media_pause)
-            setColorFilter(Color.WHITE)
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+        // 1. Pause / Resume Button
+        val pauseBtnContainer = FrameLayout(this).apply {
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#334155")) // Slate
+                shape = GradientDrawable.OVAL
+            }
+            background = bg
+            val p = dp(4)
+            setPadding(p, p, p, p)
+            val params = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                marginStart = dp(6)
+            }
+            layoutParams = params
+
+            pauseIcon = ImageView(this@FloatingControlService).apply {
+                setImageResource(android.R.drawable.ic_media_pause)
+                setColorFilter(Color.WHITE)
+                val iconParams = FrameLayout.LayoutParams(dp(20), dp(20)).apply {
+                    gravity = Gravity.CENTER
+                }
+                layoutParams = iconParams
+            }
+            addView(pauseIcon)
+
             setOnClickListener {
                 val state = ScreenRecordService.recordingState.value
-                val intent = Intent(this@FloatingControlService, ScreenRecordService::class.java).apply {
-                    action = if (state.isPaused) ScreenRecordService.ACTION_RESUME else ScreenRecordService.ACTION_PAUSE
+                if (state.isPaused) {
+                    ScreenRecordService.resumeRecording(this@FloatingControlService)
+                } else {
+                    ScreenRecordService.pauseRecording(this@FloatingControlService)
                 }
-                startService(intent)
             }
         }
-        expandedControlsLayout?.addView(pauseIcon)
+        expandedControlsLayout?.addView(pauseBtnContainer)
 
-        // 2. Stop & Save icon (Red square / stop button)
-        val stopBtn = ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            setColorFilter(Color.parseColor("#EF4444")) // Crimson red
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            setOnClickListener {
-                val intent = Intent(this@FloatingControlService, ScreenRecordService::class.java).apply {
-                    action = ScreenRecordService.ACTION_STOP
+        // 2. Stop & Save Button (Solid bright red circle with white square ⏹️)
+        val stopBtnContainer = FrameLayout(this).apply {
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#DC2626")) // Crimson red
+                shape = GradientDrawable.OVAL
+            }
+            background = bg
+            val params = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                marginStart = dp(6)
+                marginEnd = dp(6)
+            }
+            layoutParams = params
+
+            // White rounded square inside (Standard ⏹️ stop icon)
+            val stopSquare = View(this@FloatingControlService).apply {
+                val squareBg = GradientDrawable().apply {
+                    setColor(Color.WHITE)
+                    cornerRadius = dp(3).toFloat()
                 }
-                startService(intent)
+                background = squareBg
+                val sqParams = FrameLayout.LayoutParams(dp(14), dp(14)).apply {
+                    gravity = Gravity.CENTER
+                }
+                layoutParams = sqParams
+            }
+            addView(stopSquare)
+
+            setOnClickListener {
+                Toast.makeText(this@FloatingControlService, "Recording stopped • Saving to Gallery...", Toast.LENGTH_SHORT).show()
+                ScreenRecordService.stopRecording(this@FloatingControlService)
                 stopSelf()
             }
         }
-        expandedControlsLayout?.addView(stopBtn)
+        expandedControlsLayout?.addView(stopBtnContainer)
 
         // 3. Arrow & Mark Screen Tool button (➡️ / ✏️)
-        val drawBtn = ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_menu_edit)
-            setColorFilter(Color.parseColor("#FBBF24")) // Yellow
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+        val drawBtnContainer = FrameLayout(this).apply {
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#B45309")) // Amber
+                shape = GradientDrawable.OVAL
+            }
+            background = bg
+            val params = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                marginEnd = dp(6)
+            }
+            layoutParams = params
+
+            val drawIcon = ImageView(this@FloatingControlService).apply {
+                setImageResource(android.R.drawable.ic_menu_edit)
+                setColorFilter(Color.parseColor("#FDE047")) // Bright Yellow
+                val iconParams = FrameLayout.LayoutParams(dp(18), dp(18)).apply {
+                    gravity = Gravity.CENTER
+                }
+                layoutParams = iconParams
+            }
+            addView(drawIcon)
+
             setOnClickListener {
                 toggleScreenDrawOverlay()
             }
         }
-        expandedControlsLayout?.addView(drawBtn)
+        expandedControlsLayout?.addView(drawBtnContainer)
 
         // 4. Open Pixelgram App / Home icon
-        val appBtn = ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_menu_agenda)
-            setColorFilter(Color.parseColor("#38BDF8")) // Sky Blue
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+        val appBtnContainer = FrameLayout(this).apply {
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#1E293B")) // Dark Slate
+                shape = GradientDrawable.OVAL
+            }
+            background = bg
+            val params = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                marginEnd = dp(4)
+            }
+            layoutParams = params
+
+            val appIcon = ImageView(this@FloatingControlService).apply {
+                setImageResource(android.R.drawable.ic_menu_agenda)
+                setColorFilter(Color.parseColor("#38BDF8")) // Sky Blue
+                val iconParams = FrameLayout.LayoutParams(dp(18), dp(18)).apply {
+                    gravity = Gravity.CENTER
+                }
+                layoutParams = iconParams
+            }
+            addView(appIcon)
+
             setOnClickListener {
                 val intent = Intent(this@FloatingControlService, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -261,7 +337,7 @@ class FloatingControlService : Service() {
                 startActivity(intent)
             }
         }
-        expandedControlsLayout?.addView(appBtn)
+        expandedControlsLayout?.addView(appBtnContainer)
 
         root.addView(expandedControlsLayout)
 

@@ -41,7 +41,6 @@ import com.example.data.SettingsManager
 import com.example.model.*
 import com.example.service.FloatingControlService
 import com.example.service.ScreenRecordService
-import com.example.ui.components.ApkDownloadDialog
 import com.example.ui.components.CallAudioDialog
 import com.example.ui.components.CircularVideoAvatar
 import kotlinx.coroutines.delay
@@ -67,7 +66,6 @@ fun HomeScreen(
     val facecamConfig by settingsManager.facecamConfig.collectAsState()
     val avatarVideoUri by settingsManager.avatarVideoUri.collectAsState()
 
-    var showApkDownloadDialog by remember { mutableStateOf(false) }
     var showCallAudioNotice by remember { mutableStateOf(false) }
     var countdownValue by remember { mutableIntStateOf(0) }
     var pendingProjectionData by remember { mutableStateOf<Pair<Int, Intent>?>(null) }
@@ -149,37 +147,11 @@ fun HomeScreen(
                     )
                 }
 
-                // Top Actions: APK Download & Storage
+                // Top Action: Storage Info
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // APK Download pill button
-                    Surface(
-                        onClick = { showApkDownloadDialog = true },
-                        color = Color(0xFFEF4444).copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GetApp,
-                                contentDescription = "Download APK",
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFFEF4444)
-                            )
-                            Text(
-                                text = "APK",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFFEF4444)
-                            )
-                        }
-                    }
-
                     // Storage pill
                     val usedGb = (totalStorageBytes - freeStorageBytes) / (1024.0 * 1024.0 * 1024.0)
                     val totalGb = totalStorageBytes / (1024.0 * 1024.0 * 1024.0)
@@ -713,13 +685,6 @@ fun HomeScreen(
 
     if (showCallAudioNotice) {
         CallAudioDialog(onDismiss = { showCallAudioNotice = false })
-    }
-
-    if (showApkDownloadDialog) {
-        ApkDownloadDialog(
-            settingsManager = settingsManager,
-            onDismiss = { showApkDownloadDialog = false }
-        )
     }
 }
 

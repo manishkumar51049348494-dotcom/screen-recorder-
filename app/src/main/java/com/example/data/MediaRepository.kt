@@ -3,6 +3,7 @@ package com.example.data
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -174,15 +175,57 @@ class MediaRepository(
             retriever.release()
         } catch (_: Exception) {}
 
-        val uri = try {
+        // --- EXPORT DIRECTLY INTO ANDROID SYSTEM GALLERY (MediaStore) ---
+        var galleryUri: Uri? = null
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.TITLE, file.nameWithoutExtension)
+                put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
+                put(MediaStore.Video.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
+                if (realDurationMs > 0) {
+                    put(MediaStore.Video.Media.DURATION, realDurationMs)
+                }
+                if (width > 0 && height > 0) {
+                    put(MediaStore.Video.Media.WIDTH, width)
+                    put(MediaStore.Video.Media.HEIGHT, height)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/Pixelgram")
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                }
+            }
+
+            galleryUri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+            if (galleryUri != null) {
+                context.contentResolver.openOutputStream(galleryUri)?.use { outStream ->
+                    file.inputStream().use { inStream ->
+                        inStream.copyTo(outStream)
+                    }
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.Video.Media.IS_PENDING, 0)
+                    context.contentResolver.update(galleryUri, values, null, null)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val fileProviderUri = try {
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         } catch (_: Exception) {
             Uri.fromFile(file)
         }
 
+        // Use galleryUri if created so that external players and the system recognize it as the public media item
+        val finalContentUri = galleryUri ?: fileProviderUri
+
         val entity = MediaRecordEntity(
             filePath = file.absolutePath,
-            contentUriString = uri.toString(),
+            contentUriString = finalContentUri.toString(),
             title = file.nameWithoutExtension,
             durationMs = realDurationMs,
             sizeBytes = file.length(),
@@ -194,13 +237,17 @@ class MediaRepository(
             audioMode = audioMode
         )
         val id = mediaRecordDao.insert(entity)
-        // Scan into phone's MediaStore so it immediately appears in phone's Files and Gallery
+
+        // Force full media scan and broadcast to trigger Android system gallery indexing
         try {
             MediaScannerConnection.scanFile(
                 context,
                 arrayOf(file.absolutePath),
                 arrayOf("video/mp4"),
                 null
+            )
+            context.sendBroadcast(
+                Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file))
             )
         } catch (_: Exception) {}
 
@@ -212,15 +259,53 @@ class MediaRepository(
         width: Int,
         height: Int
     ): MediaItem = withContext(Dispatchers.IO) {
-        val uri = try {
+        // --- EXPORT DIRECTLY INTO ANDROID SYSTEM GALLERY (MediaStore) ---
+        var galleryUri: Uri? = null
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.TITLE, file.nameWithoutExtension)
+                put(MediaStore.Images.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
+                put(MediaStore.Images.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
+                if (width > 0 && height > 0) {
+                    put(MediaStore.Images.Media.WIDTH, width)
+                    put(MediaStore.Images.Media.HEIGHT, height)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Pixelgram")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+
+            galleryUri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            if (galleryUri != null) {
+                context.contentResolver.openOutputStream(galleryUri)?.use { outStream ->
+                    file.inputStream().use { inStream ->
+                        inStream.copyTo(outStream)
+                    }
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    context.contentResolver.update(galleryUri, values, null, null)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val fileProviderUri = try {
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         } catch (_: Exception) {
             Uri.fromFile(file)
         }
 
+        val finalContentUri = galleryUri ?: fileProviderUri
+
         val entity = MediaRecordEntity(
             filePath = file.absolutePath,
-            contentUriString = uri.toString(),
+            contentUriString = finalContentUri.toString(),
             title = file.nameWithoutExtension,
             durationMs = 0L,
             sizeBytes = file.length(),
@@ -238,6 +323,9 @@ class MediaRepository(
                 arrayOf(file.absolutePath),
                 arrayOf("image/png"),
                 null
+            )
+            context.sendBroadcast(
+                Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(file))
             )
         } catch (_: Exception) {}
 

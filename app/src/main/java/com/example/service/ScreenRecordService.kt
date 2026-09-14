@@ -63,6 +63,58 @@ class ScreenRecordService : Service() {
 
         var isServiceRunning = false
             private set
+
+        @Volatile
+        var activeInstance: ScreenRecordService? = null
+            private set
+
+        fun stopRecording(context: Context) {
+            val instance = activeInstance
+            if (instance != null) {
+                instance.stopRecording()
+            } else {
+                try {
+                    val intent = Intent(context, ScreenRecordService::class.java).apply {
+                        action = ACTION_STOP
+                    }
+                    context.startService(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        fun pauseRecording(context: Context) {
+            val instance = activeInstance
+            if (instance != null) {
+                instance.pauseRecording()
+            } else {
+                try {
+                    val intent = Intent(context, ScreenRecordService::class.java).apply {
+                        action = ACTION_PAUSE
+                    }
+                    context.startService(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        fun resumeRecording(context: Context) {
+            val instance = activeInstance
+            if (instance != null) {
+                instance.resumeRecording()
+            } else {
+                try {
+                    val intent = Intent(context, ScreenRecordService::class.java).apply {
+                        action = ACTION_RESUME
+                    }
+                    context.startService(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -89,6 +141,7 @@ class ScreenRecordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        activeInstance = this
         isServiceRunning = true
         createNotificationChannel()
     }
@@ -245,7 +298,7 @@ class ScreenRecordService : Service() {
         }
     }
 
-    private fun pauseRecording() {
+    fun pauseRecording() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && _recordingState.value.isRecording && !_recordingState.value.isPaused) {
             try {
                 mediaRecorder?.pause()
@@ -258,7 +311,7 @@ class ScreenRecordService : Service() {
         }
     }
 
-    private fun resumeRecording() {
+    fun resumeRecording() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && _recordingState.value.isRecording && _recordingState.value.isPaused) {
             try {
                 mediaRecorder?.resume()
@@ -271,7 +324,7 @@ class ScreenRecordService : Service() {
         }
     }
 
-    private fun stopRecording() {
+    fun stopRecording() {
         if (!_recordingState.value.isRecording && currentOutputFile == null) {
             return
         }
@@ -510,6 +563,9 @@ class ScreenRecordService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        if (activeInstance == this) {
+            activeInstance = null
+        }
         isServiceRunning = false
         serviceScope.cancel()
     }
