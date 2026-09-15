@@ -11,12 +11,15 @@ import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.media.AudioManager
 import android.media.MediaRecorder
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Environment
 import android.os.IBinder
+import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.PixelgramApp
@@ -211,33 +214,15 @@ class ScreenRecordService : Service() {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             currentOutputFile = File(moviesDir, "Pixelgram_$timestamp.mp4")
 
-            // Initialize MediaRecorder
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(this)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }
-
-            mediaRecorder?.apply {
-                if (audioMode == AudioSourceMode.MIC || audioMode == AudioSourceMode.INTERNAL_AND_MIC) {
-                    setAudioSource(MediaRecorder.AudioSource.MIC)
-                }
-                setVideoSource(MediaRecorder.VideoSource.SURFACE)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setOutputFile(currentOutputFile?.absolutePath)
-                setVideoSize(width, height)
-                setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                if (audioMode == AudioSourceMode.MIC || audioMode == AudioSourceMode.INTERNAL_AND_MIC) {
-                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                    setAudioEncodingBitRate(192_000)
-                    setAudioSamplingRate(44100)
-                }
-                setVideoEncodingBitRate(bitrate)
-                setVideoFrameRate(fps)
-
-                prepare()
-            }
+            // Initialize MediaRecorder with multi-source call and VoIP audio fallback
+            mediaRecorder = createConfiguredMediaRecorder(
+                outputFile = currentOutputFile!!,
+                width = width,
+                height = height,
+                fps = fps,
+                bitrate = bitrate,
+                audioMode = audioMode
+            )
 
             // Create VirtualDisplay
             val surface = mediaRecorder?.surface
@@ -252,7 +237,34 @@ class ScreenRecordService : Service() {
                 null
             )
 
-            mediaRecorder?.start()
+            try {
+                mediaRecorder?.start()
+            } catch (startEx: Exception) {
+                Log.e("ScreenRecordService", "MediaRecorder.start() failed: ${startEx.message}, retrying video-only fallback...")
+                try {
+                    mediaRecorder?.release()
+                } catch (_: Exception) {}
+                
+                val fallbackRec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    MediaRecorder(this)
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaRecorder()
+                }
+                fallbackRec.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+                fallbackRec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                fallbackRec.setOutputFile(currentOutputFile?.absolutePath)
+                fallbackRec.setVideoSize(width, height)
+                fallbackRec.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                fallbackRec.setVideoEncodingBitRate(bitrate)
+                fallbackRec.setVideoFrameRate(fps)
+                fallbackRec.prepare()
+
+                virtualDisplay?.surface = fallbackRec.surface
+                fallbackRec.start()
+                mediaRecorder = fallbackRec
+            }
+
             startTimeMs = System.currentTimeMillis()
             pausedDurationMs = 0L
 
@@ -277,6 +289,106 @@ class ScreenRecordService : Service() {
             )
             stopSelf()
         }
+    }
+
+    private fun createConfiguredMediaRecorder(
+        outputFile: File,
+        width: Int,
+        height: Int,
+        fps: Int,
+        bitrate: Int,
+        audioMode: AudioSourceMode
+    ): MediaRecorder {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        val isCallActive = audioManager != null && (
+            audioManager.mode == AudioManager.MODE_IN_COMMUNICATION ||
+            audioManager.mode == AudioManager.MODE_IN_CALL
+        )
+
+        val candidateAudioSources: List<Int> = when {
+            audioMode == AudioSourceMode.NONE -> emptyList()
+            audioMode == AudioSourceMode.VOIP_CALL || isCallActive -> listOf(
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION, // 7: Allows concurrent recording during WhatsApp, Instagram & Messenger calls
+                MediaRecorder.AudioSource.CAMCORDER,          // 5: Camcorder high gain, picks up both loud speaker and nearby speech
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,  // 6: Avoids call noise suppression muting
+                MediaRecorder.AudioSource.MIC                 // 1: Standard mic fallback
+            )
+            audioMode == AudioSourceMode.INTERNAL -> listOf(
+                MediaRecorder.AudioSource.CAMCORDER,
+                MediaRecorder.AudioSource.MIC
+            )
+            else -> listOf(
+                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                MediaRecorder.AudioSource.CAMCORDER
+            )
+        }
+
+        if (audioMode == AudioSourceMode.VOIP_CALL || isCallActive) {
+            serviceScope.launch(Dispatchers.Main) {
+                Toast.makeText(
+                    applicationContext,
+                    "📞 Call Recording Tip: Turn ON Phone Speaker (Loudspeaker) to record both voices clearly!",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        var preparedRecorder: MediaRecorder? = null
+
+        for (source in candidateAudioSources) {
+            val rec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(this)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
+
+            try {
+                rec.setAudioSource(source)
+                rec.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+                rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                rec.setOutputFile(outputFile.absolutePath)
+                rec.setVideoSize(width, height)
+                rec.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                rec.setAudioEncodingBitRate(192_000)
+                rec.setAudioSamplingRate(44100)
+                rec.setVideoEncodingBitRate(bitrate)
+                rec.setVideoFrameRate(fps)
+
+                rec.prepare()
+                Log.d("ScreenRecordService", "MediaRecorder prepared successfully with audio source: $source")
+                preparedRecorder = rec
+                break
+            } catch (e: Exception) {
+                Log.w("ScreenRecordService", "Audio source $source failed prepare: ${e.message}, trying next...")
+                try {
+                    rec.release()
+                } catch (_: Exception) {}
+            }
+        }
+
+        if (preparedRecorder != null) {
+            return preparedRecorder
+        }
+
+        // Fallback to video-only if all audio configurations fail or audioMode == NONE
+        val videoOnlyRec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            MediaRecorder(this)
+        } else {
+            @Suppress("DEPRECATION")
+            MediaRecorder()
+        }
+        videoOnlyRec.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+        videoOnlyRec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+        videoOnlyRec.setOutputFile(outputFile.absolutePath)
+        videoOnlyRec.setVideoSize(width, height)
+        videoOnlyRec.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+        videoOnlyRec.setVideoEncodingBitRate(bitrate)
+        videoOnlyRec.setVideoFrameRate(fps)
+        videoOnlyRec.prepare()
+        return videoOnlyRec
     }
 
     private fun startTimer() {

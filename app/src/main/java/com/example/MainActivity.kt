@@ -233,7 +233,7 @@ class MainActivity : ComponentActivity() {
                                     settingsManager = settingsManager,
                                     onStartRecording = { resultCode, data ->
                                         // Check mic permission if needed
-                                        if ((audioConfig.audioSource == AudioSourceMode.MIC || audioConfig.audioSource == AudioSourceMode.INTERNAL_AND_MIC) &&
+                                        if (audioConfig.audioSource != AudioSourceMode.NONE &&
                                             ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
                                         ) {
                                             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)

@@ -27,10 +27,11 @@ enum class VideoOrientation(val label: String) {
 }
 
 enum class AudioSourceMode(val label: String, val description: String) {
-    NONE("No Audio", "Silent recording"),
+    VOIP_CALL("Call Audio (WhatsApp/Insta)", "Record both your voice & incoming call on Speaker / Handsfree mode"),
     MIC("Microphone", "Record speech and ambient sounds via mic"),
+    INTERNAL_AND_MIC("Internal + Microphone", "Record device gameplay/media sound plus microphone commentary"),
     INTERNAL("Internal Device Audio", "Android 10+ system playback audio capture"),
-    INTERNAL_AND_MIC("Internal + Microphone", "Record device gameplay/media sound plus microphone commentary")
+    NONE("No Audio", "Silent recording")
 }
 
 enum class AudioQuality(val label: String, val bitrate: Int, val sampleRate: Int) {

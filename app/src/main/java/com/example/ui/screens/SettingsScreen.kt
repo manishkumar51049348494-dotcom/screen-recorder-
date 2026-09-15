@@ -211,10 +211,13 @@ fun SettingsScreen(
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-                // Call Audio Compatibility Status
+                // Call Audio Compatibility Guide
                 Surface(
-                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                    color = Color(0xFF10B981).copy(alpha = 0.12f),
                     shape = RoundedCornerShape(12.dp),
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF10B981).copy(alpha = 0.4f))
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -222,23 +225,23 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.PhoneInTalk, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
                             Text(
-                                text = "Call Audio Capture Policy",
+                                text = "WhatsApp, Instagram & Call Recording",
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onErrorContainer
+                                color = Color(0xFF10B981)
                             )
                         }
                         Text(
-                            text = "\"${AudioCaptureHelper.CALL_AUDIO_RESTRICTED_MESSAGE}\"",
+                            text = "Dono taraf ki awaz (Aapki + Samne wale ki) record karne ke liye call ko Speaker (Loudspeaker) par daalein.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         TextButton(
                             onClick = { showCallAudioNotice = true },
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            Text("Learn why Android restricts call audio", style = MaterialTheme.typography.labelSmall)
+                            Text("Open 3-Step Call Recording Guide →", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF38BDF8))
                         }
                     }
                 }

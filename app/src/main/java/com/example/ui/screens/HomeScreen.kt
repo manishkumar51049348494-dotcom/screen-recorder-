@@ -516,17 +516,34 @@ fun HomeScreen(
 
                 // Audio Card
                 Card(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            val sources = AudioSourceMode.values()
+                            val next = sources[(sources.indexOf(audioConfig.audioSource) + 1) % sources.size]
+                            settingsManager.updateAudioConfig(audioConfig.copy(audioSource = next))
+                        },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Icon(
-                            Icons.Default.Mic,
-                            contentDescription = null,
-                            tint = Color(0xFF10B981),
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = null,
+                                tint = if (audioConfig.audioSource == AudioSourceMode.NONE) Color(0xFF94A3B8) else Color(0xFF10B981),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Switch",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Audio Source",
@@ -599,43 +616,113 @@ fun HomeScreen(
                 }
             }
 
-            // CALL AUDIO COMPATIBILITY CARD
+            // WHATSAPP, INSTAGRAM & CALL AUDIO RECORDING CARD
+            val isCallModeActive = audioConfig.audioSource == AudioSourceMode.VOIP_CALL
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showCallAudioNotice = true },
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                    containerColor = if (isCallModeActive) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                ),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = if (isCallModeActive) {
+                        Brush.horizontalGradient(listOf(Color(0xFF10B981), Color(0xFF059669)))
+                    } else {
+                        Brush.horizontalGradient(listOf(Color(0xFF475569), Color(0xFF334155)))
+                    }
                 )
             ) {
-                Row(
+                Column(
                     modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        Icons.Default.PhoneInTalk,
-                        contentDescription = null,
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "VoIP & Call Audio Compliance",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                        )
-                        Text(
-                            text = "Tap to view Android policy & call recording disclosures",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isCallModeActive) Color(0xFF10B981).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.PhoneInTalk,
+                                    contentDescription = null,
+                                    tint = if (isCallModeActive) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "WhatsApp & Call Recording",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (isCallModeActive) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isCallModeActive) "Active • Records both sides (Speaker ON)" else "Record WhatsApp, Insta & Phone calls",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isCallModeActive) Color(0xFF34D399) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Switch(
+                            checked = isCallModeActive,
+                            onCheckedChange = { isChecked ->
+                                val newSource = if (isChecked) AudioSourceMode.VOIP_CALL else AudioSourceMode.MIC
+                                settingsManager.updateAudioConfig(audioConfig.copy(audioSource = newSource))
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF10B981)
+                            )
                         )
                     }
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+                    Surface(
+                        color = if (isCallModeActive) Color(0xFF064E3B).copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .clickable { showCallAudioNotice = true }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.VolumeUp,
+                                    contentDescription = null,
+                                    tint = if (isCallModeActive) Color(0xFF34D399) else Color(0xFF38BDF8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Rule: Call ko SPEAKER par rakhein dono awaz record karne ke liye",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                                    color = if (isCallModeActive) Color(0xFFD1FAE5) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "Guide",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF38BDF8)
+                            )
+                        }
+                    }
                 }
             }
         }

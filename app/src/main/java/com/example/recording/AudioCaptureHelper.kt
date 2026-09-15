@@ -15,7 +15,7 @@ sealed class CallAudioCompatibilityResult {
 object AudioCaptureHelper {
 
     const val CALL_AUDIO_RESTRICTED_MESSAGE =
-        "Call audio is restricted by Android or the calling app on this device."
+        "For WhatsApp, Instagram & Calls: Turn ON Phone Speaker (Loudspeaker) to record both voices clearly."
 
     /**
      * Inspects whether Android platform and third-party call applications allow audio playback capture.
